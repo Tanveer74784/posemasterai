@@ -1,9 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import type { Pose, PoseRequest, PoseCategory } from '@/types'
+import type { Pose, PoseRequest } from '@/types'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY environment variable is not configured. Please set GEMINI_API_KEY in your deployment dashboard.')
+  }
+  return new GoogleGenerativeAI(apiKey.trim())
+}
 
 export async function generatePoses(request: PoseRequest): Promise<Pose[]> {
+  const genAI = getGeminiClient()
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
 
   const groupDescription = getGroupDescription(request.groupSize)
@@ -31,7 +38,6 @@ Return ONLY a valid JSON array with exactly 9 pose objects. Each object must hav
 
 Make poses:
 - Specific and actionable (not vague like "stand together")
-- Culturally relevant (include some Indian/South Asian friendly poses)
 - Varied in difficulty (3 Easy, 3 Medium, 3 Pro)
 - Creative and trendy (Instagram/Pinterest worthy)
 - Suitable for the ${request.occasion} occasion
@@ -60,6 +66,7 @@ function getGroupDescription(size: number): string {
 }
 
 export async function generateQuickTips(groupSize: number, occasion: string): Promise<string[]> {
+  const genAI = getGeminiClient()
   const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
 
   const prompt = `Give 5 quick photography tips for a ${groupSize}-person ${occasion} photo shoot. 

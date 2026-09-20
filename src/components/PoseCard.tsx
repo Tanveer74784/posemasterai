@@ -130,9 +130,9 @@ export default function PoseCard({ pose, index }: PoseCardProps) {
             className="mt-3 flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors font-medium"
           >
             {expanded ? (
-              <><ChevronUp className="w-3.5 h-3.5" /> Kam Dikhao</>
+              <><ChevronUp className="w-3.5 h-3.5" /> Show Less</>
             ) : (
-              <><ChevronDown className="w-3.5 h-3.5" /> Poori Details + Tips</>
+              <><ChevronDown className="w-3.5 h-3.5" /> View Details & Tips</>
             )}
           </button>
 
@@ -142,7 +142,7 @@ export default function PoseCard({ pose, index }: PoseCardProps) {
             className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600/80 to-pink-600/80 hover:from-purple-500 hover:to-pink-500 text-white py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]"
           >
             <Camera className="w-4 h-4" />
-            📸 Yeh Pose Try Karo!
+            Try This Pose
           </button>
         </div>
       </div>

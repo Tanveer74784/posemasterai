@@ -9,199 +9,280 @@ interface PoseSilhouetteProps {
   overlay?: boolean
 }
 
-// SVG silhouettes for different group sizes and pose categories
-function getSilhouetteSVG(pose: Pose, size: string, overlay: boolean): JSX.Element {
-  const { groupSize, category, occasion } = pose
-  const strokeColor = overlay ? 'rgba(168, 85, 247, 0.9)' : '#a855f7'
-  const fillColor = overlay ? 'rgba(168, 85, 247, 0.15)' : 'rgba(168, 85, 247, 0.2)'
-  const dashArray = overlay ? '8 4' : 'none'
-
-  const dims = size === 'fullscreen' ? { w: 320, h: 480 } : size === 'large' ? { w: 240, h: 360 } : { w: 120, h: 180 }
-
-  // Single person poses
-  if (groupSize === 1) {
-    return <SinglePersonSVG category={category} dims={dims} stroke={strokeColor} fill={fillColor} dash={dashArray} animated={!overlay} />
-  }
-  // Couple / 2 people
-  if (groupSize === 2) {
-    return <TwoPersonSVG occasion={occasion} dims={dims} stroke={strokeColor} fill={fillColor} dash={dashArray} animated={!overlay} />
-  }
-  // 3 people
-  if (groupSize === 3) {
-    return <ThreePersonSVG dims={dims} stroke={strokeColor} fill={fillColor} dash={dashArray} animated={!overlay} />
-  }
-  // 4-5 people
-  if (groupSize <= 5) {
-    return <GroupSVG count={groupSize} dims={dims} stroke={strokeColor} fill={fillColor} dash={dashArray} animated={!overlay} />
-  }
-  // Large group
-  return <LargeGroupSVG dims={dims} stroke={strokeColor} fill={fillColor} dash={dashArray} />
+interface Point {
+  x: number
+  y: number
+  label?: string
 }
 
-function SinglePersonSVG({ category, dims, stroke, fill, dash, animated }: any) {
-  const isAction = category === 'action'
-  const isEditorial = category === 'editorial'
-  const isRomantic = category === 'romantic' || category === 'fun'
+interface Skeleton {
+  head: Point
+  shoulders: [Point, Point]
+  elbows: [Point, Point]
+  wrists: [Point, Point]
+  hips: [Point, Point]
+  knees: [Point, Point]
+  ankles: [Point, Point]
+}
+
+function renderDotSkeleton(
+  sk: Skeleton, 
+  strokeColor: string, 
+  dotColor: string, 
+  glowColor: string, 
+  dash: string, 
+  keyPrefix = 'sk'
+) {
+  const [ls, rs] = sk.shoulders
+  const [le, re] = sk.elbows
+  const [lw, rw] = sk.wrists
+  const [lh, rh] = sk.hips
+  const [lk, rk] = sk.knees
+  const [la, ra] = sk.ankles
+
+  const midShoulder = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 }
+  const midHip = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 }
+
+  const dots = [
+    sk.head,
+    ls, rs,
+    le, re,
+    lw, rw,
+    lh, rh,
+    lk, rk,
+    la, ra
+  ]
+
+  const lines = [
+    // Neck/Spine
+    [sk.head, midShoulder],
+    [midShoulder, midHip],
+    // Shoulder bar & Hip bar
+    [ls, rs],
+    [lh, rh],
+    // Arms
+    [ls, le],
+    [le, lw],
+    [rs, re],
+    [re, rw],
+    // Legs
+    [lh, lk],
+    [lk, la],
+    [rh, rk],
+    [rk, ra]
+  ]
 
   return (
-    <svg width={dims.w} height={dims.h} viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Head */}
-      <circle cx="50" cy="18" r="12" stroke={stroke} strokeWidth="2.5" fill={fill} strokeDasharray={dash} />
-      {/* Body */}
-      <line x1="50" y1="30" x2="50" y2="85" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Left arm */}
-      <line x1="50" y1="45"
-        x2={isAction ? "22" : isEditorial ? "25" : "28"}
-        y2={isAction ? "35" : isEditorial ? "65" : "70"}
-        stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Right arm */}
-      <line x1="50" y1="45"
-        x2={isAction ? "78" : isEditorial ? "75" : "72"}
-        y2={isAction ? "30" : isEditorial ? "60" : "70"}
-        stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Left leg */}
-      <line x1="50" y1="85"
-        x2={isAction ? "32" : "38"}
-        y2={isAction ? "125" : "140"}
-        stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Right leg */}
-      <line x1="50" y1="85"
-        x2={isAction ? "70" : "62"}
-        y2={isAction ? "125" : "140"}
-        stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Category label */}
-      <text x="50" y="155" textAnchor="middle" fontSize="7" fill={stroke} fontFamily="sans-serif">
-        {isAction ? '⚡ Power' : isEditorial ? '📸 Editorial' : '😎 Casual'}
-      </text>
-    </svg>
-  )
-}
+    <g key={keyPrefix}>
+      {/* Bones / Connecting Guide Lines */}
+      {lines.map(([p1, p2], idx) => (
+        <line
+          key={`${keyPrefix}-line-${idx}`}
+          x1={p1.x}
+          y1={p1.y}
+          x2={p2.x}
+          y2={p2.y}
+          stroke={strokeColor}
+          strokeWidth="2.5"
+          strokeDasharray={dash}
+          strokeLinecap="round"
+        />
+      ))}
 
-function TwoPersonSVG({ occasion, dims, stroke, fill, dash, animated }: any) {
-  const isRomantic = occasion === 'romantic' || occasion === 'wedding'
-  const gap = isRomantic ? 28 : 35
+      {/* Head Ring Guide */}
+      <circle
+        cx={sk.head.x}
+        cy={sk.head.y}
+        r="10"
+        stroke={strokeColor}
+        strokeWidth="2"
+        strokeDasharray={dash}
+        fill="rgba(168, 85, 247, 0.12)"
+      />
 
-  const renderPerson = (cx: number, mirrorArm?: boolean) => (
-    <g key={cx}>
-      <circle cx={cx} cy="18" r="10" stroke={stroke} strokeWidth="2.5" fill={fill} strokeDasharray={dash} />
-      <line x1={cx} y1="28" x2={cx} y2="80" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Inner arm (toward each other) */}
-      <line x1={cx} y1="42" x2={mirrorArm ? cx + 14 : cx - 14} y2={isRomantic ? "55" : "65"} stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Outer arm */}
-      <line x1={cx} y1="42" x2={mirrorArm ? cx - 18 : cx + 18} y2="65" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      <line x1={cx} y1="80" x2={cx - 8} y2="130" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
-      <line x1={cx} y1="80" x2={cx + 8} y2="130" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
+      {/* Keypoint Joints / Dots */}
+      {dots.map((d, idx) => (
+        <g key={`${keyPrefix}-dot-${idx}`}>
+          {/* Subtle joint glow */}
+          <circle
+            cx={d.x}
+            cy={d.y}
+            r="4.5"
+            fill={glowColor}
+            opacity="0.6"
+          />
+          {/* Main Keypoint Dot */}
+          <circle
+            cx={d.x}
+            cy={d.y}
+            r="2.8"
+            fill={dotColor}
+            stroke="#ffffff"
+            strokeWidth="1"
+          />
+        </g>
+      ))}
     </g>
   )
-
-  return (
-    <svg width={dims.w} height={dims.h} viewBox="0 0 100 155" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {renderPerson(35, false)}
-      {renderPerson(65, true)}
-      {isRomantic && (
-        <>
-          {/* Heart between them */}
-          <text x="50" y="52" textAnchor="middle" fontSize="10">❤️</text>
-        </>
-      )}
-      <text x="50" y="150" textAnchor="middle" fontSize="7" fill={stroke} fontFamily="sans-serif">
-        {isRomantic ? '❤️ Romantic' : '👫 Together'}
-      </text>
-    </svg>
-  )
 }
 
-function ThreePersonSVG({ dims, stroke, fill, dash, animated }: any) {
-  const positions = [25, 50, 75]
+export default function PoseSilhouette({
+  pose,
+  size = 'large',
+  animated = false,
+  overlay = false
+}: PoseSilhouetteProps) {
+  const { groupSize, category } = pose
 
-  return (
-    <svg width={dims.w} height={dims.h} viewBox="0 0 100 155" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {positions.map((cx, i) => (
-        <g key={i}>
-          <circle cx={cx} cy={i === 1 ? "15" : "20"} r="9" stroke={stroke} strokeWidth="2" fill={fill} strokeDasharray={dash} />
-          <line x1={cx} y1={i === 1 ? "24" : "29"} x2={cx} y2={i === 1 ? "75" : "80"} stroke={stroke} strokeWidth="2" strokeLinecap="round" />
-          <line x1={cx} y1={i === 1 ? "38" : "42"} x2={cx - 12} y2="65" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
-          <line x1={cx} y1={i === 1 ? "38" : "42"} x2={cx + 12} y2="65" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
-          <line x1={cx} y1={i === 1 ? "75" : "80"} x2={cx - 7} y2="128" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
-          <line x1={cx} y1={i === 1 ? "75" : "80"} x2={cx + 7} y2="128" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
-        </g>
-      ))}
-      <text x="50" y="148" textAnchor="middle" fontSize="7" fill={stroke} fontFamily="sans-serif">
-        👥 Trio
-      </text>
-    </svg>
-  )
-}
+  // Neon glowing futuristic colors for high contrast guide
+  const strokeColor = overlay ? '#38bdf8' : '#c084fc' // Cyan on camera overlay for contrast, purple in card
+  const dotColor = overlay ? '#22d3ee' : '#e879f9'
+  const glowColor = overlay ? '#0284c7' : '#a855f7'
+  const dash = overlay ? '5 4' : '4 3'
 
-function GroupSVG({ count, dims, stroke, fill, dash, animated }: any) {
-  const positions = count === 4
-    ? [20, 40, 62, 82]
-    : [14, 30, 50, 70, 86]
+  const dims = size === 'fullscreen' 
+    ? { w: 320, h: 480 } 
+    : size === 'large' 
+    ? { w: 240, h: 360 } 
+    : { w: 140, h: 190 }
 
-  return (
-    <svg width={dims.w} height={dims.h} viewBox="0 0 100 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {positions.map((cx, i) => {
-        const isMid = i === Math.floor(positions.length / 2)
-        const cy = isMid ? 14 : 18
-        return (
-          <g key={i}>
-            <circle cx={cx} cy={cy} r="7" stroke={stroke} strokeWidth="1.8" fill={fill} strokeDasharray={dash} />
-            <line x1={cx} y1={cy + 7} x2={cx} y2={cy + 52} stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={cx} y1={cy + 18} x2={cx - 9} y2={cy + 38} stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={cx} y1={cy + 18} x2={cx + 9} y2={cy + 38} stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={cx} y1={cy + 52} x2={cx - 5} y2={cy + 88} stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={cx} y1={cy + 52} x2={cx + 5} y2={cy + 88} stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-          </g>
-        )
-      })}
-      <text x="50" y="148" textAnchor="middle" fontSize="7" fill={stroke} fontFamily="sans-serif">
-        🫂 Group of {count}
-      </text>
-    </svg>
-  )
-}
+  const renderContent = () => {
+    // 1 Person Solo Skeletons based on Category
+    if (groupSize === 1) {
+      const isAction = category === 'action'
+      const isEditorial = category === 'editorial'
 
-function LargeGroupSVG({ dims, stroke, fill, dash }: any) {
-  const row1 = [15, 30, 50, 70, 85]
-  const row2 = [22, 42, 62, 78]
+      const sk1: Skeleton = isAction
+        ? {
+            head: { x: 50, y: 22 },
+            shoulders: [{ x: 34, y: 44 }, { x: 66, y: 42 }],
+            elbows: [{ x: 20, y: 32 }, { x: 80, y: 28 }],
+            wrists: [{ x: 14, y: 18 }, { x: 88, y: 16 }],
+            hips: [{ x: 40, y: 88 }, { x: 60, y: 88 }],
+            knees: [{ x: 30, y: 122 }, { x: 72, y: 124 }],
+            ankles: [{ x: 24, y: 154 }, { x: 78, y: 154 }]
+          }
+        : isEditorial
+        ? {
+            head: { x: 48, y: 22 },
+            shoulders: [{ x: 35, y: 45 }, { x: 65, y: 44 }],
+            elbows: [{ x: 26, y: 64 }, { x: 74, y: 55 }],
+            wrists: [{ x: 36, y: 84 }, { x: 68, y: 40 }], // Hand on hip, other near hair
+            hips: [{ x: 40, y: 90 }, { x: 60, y: 88 }],
+            knees: [{ x: 44, y: 126 }, { x: 62, y: 124 }],
+            ankles: [{ x: 46, y: 156 }, { x: 64, y: 155 }]
+          }
+        : {
+            // Casual relaxed stand
+            head: { x: 50, y: 22 },
+            shoulders: [{ x: 36, y: 45 }, { x: 64, y: 45 }],
+            elbows: [{ x: 28, y: 68 }, { x: 72, y: 68 }],
+            wrists: [{ x: 35, y: 86 }, { x: 65, y: 86 }], // hands casually at sides/pockets
+            hips: [{ x: 42, y: 90 }, { x: 58, y: 90 }],
+            knees: [{ x: 40, y: 126 }, { x: 60, y: 126 }],
+            ankles: [{ x: 38, y: 156 }, { x: 62, y: 156 }]
+          }
 
-  return (
-    <svg width={dims.w} height={dims.h} viewBox="0 0 100 155" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Back row */}
-      {row1.map((cx, i) => (
-        <g key={`r1-${i}`} opacity="0.7">
-          <circle cx={cx} cy="16" r="6" stroke={stroke} strokeWidth="1.5" fill={fill} strokeDasharray={dash} />
-          <line x1={cx} y1="22" x2={cx} y2="55" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={cx} y1="32" x2={cx - 8} y2="48" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={cx} y1="32" x2={cx + 8} y2="48" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={cx} y1="55" x2={cx - 5} y2="78" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={cx} y1="55" x2={cx + 5} y2="78" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-        </g>
-      ))}
-      {/* Front row */}
-      {row2.map((cx, i) => (
-        <g key={`r2-${i}`}>
-          <circle cx={cx} cy="68" r="7" stroke={stroke} strokeWidth="1.8" fill={fill} strokeDasharray={dash} />
-          <line x1={cx} y1="75" x2={cx} y2="112" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-          <line x1={cx} y1="85" x2={cx - 9} y2="100" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-          <line x1={cx} y1="85" x2={cx + 9} y2="100" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-          <line x1={cx} y1="112" x2={cx - 6} y2="138" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-          <line x1={cx} y1="112" x2={cx + 6} y2="138" stroke={stroke} strokeWidth="1.8" strokeLinecap="round" />
-        </g>
-      ))}
-      <text x="50" y="152" textAnchor="middle" fontSize="7" fill={stroke} fontFamily="sans-serif">
-        🎊 Large Group
-      </text>
-    </svg>
-  )
-}
+      return (
+        <svg width={dims.w} height={dims.h} viewBox="0 0 100 170" fill="none">
+          {renderDotSkeleton(sk1, strokeColor, dotColor, glowColor, dash, 'p1')}
+          <text x="50" y="167" textAnchor="middle" fontSize="6.5" fill={strokeColor} fontWeight="600" letterSpacing="0.8">
+            SOLO POSE GUIDE
+          </text>
+        </svg>
+      )
+    }
 
-export default function PoseSilhouette({ pose, size = 'large', animated = false, overlay = false }: PoseSilhouetteProps) {
-  const bgClass = overlay ? '' : 'bg-gradient-to-b from-purple-950/50 to-zinc-900/50 rounded-2xl'
+    // 2 People (Couple / Duo)
+    if (groupSize === 2) {
+      const skA: Skeleton = {
+        head: { x: 35, y: 26 },
+        shoulders: [{ x: 22, y: 48 }, { x: 46, y: 48 }],
+        elbows: [{ x: 15, y: 70 }, { x: 48, y: 65 }],
+        wrists: [{ x: 20, y: 88 }, { x: 50, y: 75 }], // Arm wrapping
+        hips: [{ x: 28, y: 92 }, { x: 42, y: 92 }],
+        knees: [{ x: 27, y: 126 }, { x: 43, y: 126 }],
+        ankles: [{ x: 26, y: 156 }, { x: 44, y: 156 }]
+      }
+
+      const skB: Skeleton = {
+        head: { x: 65, y: 24 },
+        shoulders: [{ x: 54, y: 47 }, { x: 78, y: 47 }],
+        elbows: [{ x: 52, y: 66 }, { x: 85, y: 69 }],
+        wrists: [{ x: 50, y: 75 }, { x: 80, y: 88 }],
+        hips: [{ x: 58, y: 92 }, { x: 72, y: 92 }],
+        knees: [{ x: 57, y: 126 }, { x: 73, y: 126 }],
+        ankles: [{ x: 56, y: 156 }, { x: 74, y: 156 }]
+      }
+
+      return (
+        <svg width={dims.w} height={dims.h} viewBox="0 0 100 170" fill="none">
+          {renderDotSkeleton(skA, strokeColor, dotColor, glowColor, dash, 'pA')}
+          {renderDotSkeleton(skB, strokeColor, dotColor, glowColor, dash, 'pB')}
+          <text x="50" y="167" textAnchor="middle" fontSize="6.5" fill={strokeColor} fontWeight="600" letterSpacing="0.8">
+            DUO / PAIR GUIDE
+          </text>
+        </svg>
+      )
+    }
+
+    // 3 People (Trio)
+    if (groupSize === 3) {
+      const positions = [25, 50, 75]
+      return (
+        <svg width={dims.w} height={dims.h} viewBox="0 0 100 170" fill="none">
+          {positions.map((cx, i) => {
+            const isCenter = i === 1
+            const sk: Skeleton = {
+              head: { x: cx, y: isCenter ? 20 : 25 },
+              shoulders: [{ x: cx - 9, y: isCenter ? 40 : 45 }, { x: cx + 9, y: isCenter ? 40 : 45 }],
+              elbows: [{ x: cx - 13, y: 62 }, { x: cx + 13, y: 62 }],
+              wrists: [{ x: cx - 8, y: 80 }, { x: cx + 8, y: 80 }],
+              hips: [{ x: cx - 6, y: 86 }, { x: cx + 6, y: 86 }],
+              knees: [{ x: cx - 6, y: 122 }, { x: cx + 6, y: 122 }],
+              ankles: [{ x: cx - 6, y: 154 }, { x: cx + 6, y: 154 }]
+            }
+            return renderDotSkeleton(sk, strokeColor, dotColor, glowColor, dash, `trio-${i}`)
+          })}
+          <text x="50" y="167" textAnchor="middle" fontSize="6.5" fill={strokeColor} fontWeight="600" letterSpacing="0.8">
+            TRIO SKELETON GUIDE
+          </text>
+        </svg>
+      )
+    }
+
+    // 4+ / Group Skeletons
+    const count = Math.min(groupSize, 5)
+    const step = 84 / (count + 1)
+    return (
+      <svg width={dims.w} height={dims.h} viewBox="0 0 100 170" fill="none">
+        {Array.from({ length: count }).map((_, idx) => {
+          const cx = 8 + step * (idx + 1)
+          const sk: Skeleton = {
+            head: { x: cx, y: 26 },
+            shoulders: [{ x: cx - 6, y: 44 }, { x: cx + 6, y: 44 }],
+            elbows: [{ x: cx - 9, y: 63 }, { x: cx + 9, y: 63 }],
+            wrists: [{ x: cx - 6, y: 80 }, { x: cx + 6, y: 80 }],
+            hips: [{ x: cx - 4, y: 87 }, { x: cx + 4, y: 87 }],
+            knees: [{ x: cx - 4, y: 122 }, { x: cx + 4, y: 122 }],
+            ankles: [{ x: cx - 4, y: 154 }, { x: cx + 4, y: 154 }]
+          }
+          return renderDotSkeleton(sk, strokeColor, dotColor, glowColor, dash, `grp-${idx}`)
+        })}
+        <text x="50" y="167" textAnchor="middle" fontSize="6.5" fill={strokeColor} fontWeight="600" letterSpacing="0.8">
+          GROUP ({groupSize} PPL) GUIDE
+        </text>
+      </svg>
+    )
+  }
+
+  const bgClass = overlay 
+    ? 'pointer-events-none drop-shadow-[0_0_12px_rgba(56,189,248,0.5)]' 
+    : 'bg-zinc-950/70 border border-white/10 rounded-2xl p-2'
 
   return (
     <div className={`flex items-center justify-center ${bgClass} ${animated ? 'animate-float' : ''}`}>
-      {getSilhouetteSVG(pose, size, overlay)}
+      {renderContent()}
     </div>
   )
 }
